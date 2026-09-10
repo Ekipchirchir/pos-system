@@ -30,3 +30,22 @@ class SaleResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ProductStockReport(BaseModel):
+    product_id: int
+    name: str
+    remaining_stock: int
+
+class ItemSoldSummary(BaseModel):
+    product_name: str
+    total_quantity_sold: int
+    total_revenue: float
+
+class ShiftReportResponse(BaseModel):
+    total_cash_collected: float
+    total_transactions: int
+    items_sold: List[ItemSoldSummary]
+    current_inventory: List[ProductStockReport]
+
+    class Config:
+        from_attributes = True
