@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class ProductCreate(BaseModel):
     name: str
@@ -58,4 +58,12 @@ class ProductLowStockResponse(BaseModel):
     unit_type: str
 
     class Config:
-        from_attributes = True      
+        from_attributes = True 
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    barcode: Optional[str] = None
+    buying_price: Optional[float] = None
+    selling_price: Optional[float] = None
+    stock_quantity: Optional[int] = None
+    unit_type: Optional[str] = None     

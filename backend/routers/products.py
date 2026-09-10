@@ -26,6 +26,43 @@ def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
     products = db.query(models.Product).offset(skip).limit(limit).all()
     return products
 
+@router.put("/{product_id}", response_model=schemas.ProductResponse)
+def update_product_full(product_id: int, product_data: schemas.ProductCreate, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    for key, value in product_data.dict().items():
+        setattr(product, key, value)
+    
+    db.commit()
+    db.refresh(product)
+    return product
+
+@router.patch("/{product_id}", response_model=schemas.ProductResponse)
+def update_product_partial(product_id: int, product_data: schemas.ProductUpdate, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    update_data = product_data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(product, key, value)
+    
+    db.commit()
+    db.refresh(product)
+    return product
+
+@router.delete("/{product_id}")
+def delete_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    db.delete(product)
+    db.commit()
+    return {"message": f"Product with ID {product_id} deleted successfully"}
+
 @router.get("/low-stock/", response_model=list[schemas.ProductLowStockResponse])
 def get_low_stock_products(threshold: int = 5, db: Session = Depends(get_db)):
     """
