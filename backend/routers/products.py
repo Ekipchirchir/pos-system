@@ -25,3 +25,12 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
 def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     products = db.query(models.Product).offset(skip).limit(limit).all()
     return products
+
+@router.get("/low-stock/", response_model=list[schemas.ProductLowStockResponse])
+def get_low_stock_products(threshold: int = 5, db: Session = Depends(get_db)):
+    """
+    Returns a list of products whose stock quantity is less than or equal to the threshold.
+    Default threshold is set to 5 units.
+    """
+    low_stock_items = db.query(models.Product).filter(models.Product.stock_quantity <= threshold).all()
+    return low_stock_items

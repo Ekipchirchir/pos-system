@@ -49,3 +49,13 @@ class ShiftReportResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ProductLowStockResponse(BaseModel):
+    id: int
+    name: str
+    barcode: str
+    stock_quantity: int
+    unit_type: str
+
+    class Config:
+        from_attributes = True      
