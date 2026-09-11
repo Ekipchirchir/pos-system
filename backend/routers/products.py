@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 import schemas
+import auth
 
 router = APIRouter(
     prefix="/products",
     tags=["Products"]
 )
 
-@router.post("/", response_model=schemas.ProductResponse)
+@router.post("/", response_model=schemas.ProductResponse, dependencies=[Depends(auth.require_role("manager"))])
 def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
     db_product = db.query(models.Product).filter(models.Product.barcode == product.barcode).first()
     if db_product:
@@ -21,12 +22,12 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
     db.refresh(new_product)
     return new_product
 
-@router.get("/", response_model=list[schemas.ProductResponse])
+@router.get("/", response_model=list[schemas.ProductResponse], dependencies=[Depends(auth.get_current_user)])
 def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     products = db.query(models.Product).offset(skip).limit(limit).all()
     return products
 
-@router.put("/{product_id}", response_model=schemas.ProductResponse)
+@router.put("/{product_id}", response_model=schemas.ProductResponse, dependencies=[Depends(auth.require_role("manager"))])
 def update_product_full(product_id: int, product_data: schemas.ProductCreate, db: Session = Depends(get_db)):
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not product:
@@ -39,7 +40,7 @@ def update_product_full(product_id: int, product_data: schemas.ProductCreate, db
     db.refresh(product)
     return product
 
-@router.patch("/{product_id}", response_model=schemas.ProductResponse)
+@router.patch("/{product_id}", response_model=schemas.ProductResponse, dependencies=[Depends(auth.require_role("manager"))])
 def update_product_partial(product_id: int, product_data: schemas.ProductUpdate, db: Session = Depends(get_db)):
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not product:
@@ -53,7 +54,7 @@ def update_product_partial(product_id: int, product_data: schemas.ProductUpdate,
     db.refresh(product)
     return product
 
-@router.delete("/{product_id}")
+@router.delete("/{product_id}", dependencies=[Depends(auth.require_role("manager"))])
 def delete_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not product:
@@ -63,7 +64,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": f"Product with ID {product_id} deleted successfully"}
 
-@router.get("/low-stock/", response_model=list[schemas.ProductLowStockResponse])
+@router.get("/low-stock/", response_model=list[schemas.ProductLowStockResponse], dependencies=[Depends(auth.require_role("manager"))])
 def get_low_stock_products(threshold: int = 5, db: Session = Depends(get_db)):
     """
     Returns a list of products whose stock quantity is less than or equal to the threshold.

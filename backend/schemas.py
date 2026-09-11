@@ -66,4 +66,25 @@ class ProductUpdate(BaseModel):
     buying_price: Optional[float] = None
     selling_price: Optional[float] = None
     stock_quantity: Optional[int] = None
-    unit_type: Optional[str] = None     
+    unit_type: Optional[str] = None
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str = "cashier" 
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+    role: Optional[str] = None     
