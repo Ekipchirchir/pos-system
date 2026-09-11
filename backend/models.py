@@ -45,3 +45,19 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="cashier", nullable=False) 
+
+class MPesaTransaction(Base):
+    __tablename__ = "mpesa_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sale_id = Column(Integer, ForeignKey("sales.id"), nullable=True)
+    checkout_request_id = Column(String, unique=True, index=True, nullable=False)
+    merchant_request_id = Column(String, nullable=False)
+    phone_number = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    status = Column(String, default="Pending", nullable=False)  
+    receipt_number = Column(String, unique=True, index=True, nullable=True)
+    result_desc = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    sale = relationship("Sale")

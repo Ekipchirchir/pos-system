@@ -111,33 +111,66 @@ def get_shift_report(db: Session = Depends(get_db)):
 
 
 @router.post("/mpesa/stk-push", dependencies=[Depends(auth.get_current_user)])
-def initiate_mpesa_payment(phone_number: str, amount: float, order_ref: str):
+def initiate_mpesa_payment(phone_number: str, amount: float, order_ref: str, sale_id: int = None, db: Session = Depends(get_db)):
     """
-    Triggers an M-Pesa STK Push prompt to the customer's phone.
+    Triggers an M-Pesa STK Push prompt and saves the transaction state as Pending.
     """
     # Format phone number
     if phone_number.startswith("0"):
         phone_number = "254" + phone_number[1:]
         
     result = trigger_stk_push(phone_number, amount, order_ref)
+    
+    response_code = result.get("ResponseCode")
+    if response_code != "0":
+        raise HTTPException(status_code=400, detail=f"Daraja STK push failed: {result.get('errorMessage', result)}")
+    
+    checkout_request_id = result.get("CheckoutRequestID")
+    merchant_request_id = result.get("MerchantRequestID")
+    
+    # Save transaction record in database
+    mpesa_tx = models.MPesaTransaction(
+        sale_id=sale_id,
+        checkout_request_id=checkout_request_id,
+        merchant_request_id=merchant_request_id,
+        phone_number=phone_number,
+        amount=amount,
+        status="Pending"
+    )
+    db.add(mpesa_tx)
+    db.commit()
+    
     return {"message": "STK push initiated successfully", "daraja_response": result}
 
+
 @router.post("/mpesa/callback")
-async def mpesa_callback(payload: dict):
+async def mpesa_callback(payload: dict, db: Session = Depends(get_db)):
     """
-    Receives payment confirmation or failure results from Safaricom.
+    Receives payment confirmation or failure results from Safaricom and updates the database record.
     """
     stk_callback = payload.get("Body", {}).get("stkCallback", {})
     result_code = stk_callback.get("ResultCode")
     checkout_request_id = stk_callback.get("CheckoutRequestID")
+    result_desc = stk_callback.get("ResultDesc")
+    
+    mpesa_tx = db.query(models.MPesaTransaction).filter(
+        models.MPesaTransaction.checkout_request_id == checkout_request_id
+    ).first()
+    
+    if not mpesa_tx:
+        # Transaction not tracked locally, acknowledge callback to prevent Safaricom retries
+        return {"ResultCode": 0, "ResultDesc": "Accepted"}
+    
+    mpesa_tx.result_desc = result_desc
     
     if result_code == 0:
-        # Payment successful - extract MpesaReceiptNumber and update order/sale status in DB
         callback_metadata = stk_callback.get("CallbackMetadata", {}).get("Item", [])
         receipt_number = next((item["Value"] for item in callback_metadata if item["Name"] == "MpesaReceiptNumber"), None)
-        print(f"Payment successful for Checkout ID {checkout_request_id}. Receipt: {receipt_number}")
-    else:
-        # Payment failed
-        print(f"Payment failed for Checkout ID {checkout_request_id}. Reason: {stk_callback.get('ResultDesc')}")
         
+        mpesa_tx.status = "Completed"
+        mpesa_tx.receipt_number = receipt_number
+    else:
+        mpesa_tx.status = "Failed"
+        
+    db.commit()
     return {"ResultCode": 0, "ResultDesc": "Accepted"}
