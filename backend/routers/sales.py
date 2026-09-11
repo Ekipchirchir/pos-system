@@ -4,13 +4,14 @@ from sqlalchemy import func
 from database import get_db
 import models
 import schemas
+import auth
 
 router = APIRouter(
     prefix="/sales",
     tags=["Sales"]
 )
 
-@router.post("/", response_model=schemas.SaleResponse)
+@router.post("/", response_model=schemas.SaleResponse, dependencies=[Depends(auth.get_current_user)])
 def create_sale(sale_data: schemas.SaleCreate, db: Session = Depends(get_db)):
     total_amount = 0.0
     sale_items_to_create = []
@@ -61,7 +62,7 @@ def create_sale(sale_data: schemas.SaleCreate, db: Session = Depends(get_db)):
     return new_sale
 
 
-@router.get("/report/shift", response_model=schemas.ShiftReportResponse)
+@router.get("/report/shift", response_model=schemas.ShiftReportResponse, dependencies=[Depends(auth.require_role("manager"))])
 def get_shift_report(db: Session = Depends(get_db)):
     # Total cash collected and total transaction count
     total_cash, total_transactions = db.query(

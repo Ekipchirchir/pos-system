@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from enum import Enum
 
 class ProductCreate(BaseModel):
     name: str
@@ -15,13 +16,17 @@ class ProductResponse(ProductCreate):
     class Config:
         from_attributes = True
 
+class PaymentMethod(str, Enum):
+    cash = "cash"
+    mpesa = "mpesa"
+
 class SaleItemCreate(BaseModel):
     product_id: int
     quantity: int
 
 class SaleCreate(BaseModel):
     items: List[SaleItemCreate]
-    payment_method: str ="cash"
+    payment_method: PaymentMethod = PaymentMethod.cash
 
 class SaleResponse(BaseModel):
     id: int

@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from datetime import datetime, timezone
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -18,7 +20,8 @@ class Sale(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     total_amount = Column(Float, nullable=False)
-    payment_method = Column(String, default="cash")
+    payment_method = Column(String, default="cash", nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     items = relationship("SaleItem", back_populates="sale")
 
