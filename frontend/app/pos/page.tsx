@@ -257,7 +257,7 @@ export default function POSPage() {
             ) : (
               <input
                 type="text"
-                placeholder="M-Pesa Phone (07XXXXXXXX)"
+                placeholder="M-Pesa Phone (0712345678)"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white font-medium"
@@ -269,7 +269,7 @@ export default function POSPage() {
               disabled={loading || cart.length === 0 || (paymentMethod === 'cash' && cashChange < 0)}
               className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-sm transition-colors shadow-lg disabled:opacity-50"
             >
-              {loading ? 'Processing & Fiscalizing...' : 'Complete & Fiscalize Sale'}
+              {loading ? 'Processing...' : 'Complete  Sale'}
             </button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Product, SaleRequest, SaleResponse, ShiftReport, StockInRequest } from '@/types';
+import { Product, SaleRequest, SaleResponse, ShiftReport, StockInRequest, User, UserCreatePayload } from '@/types';
 
 const API = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -50,4 +50,23 @@ export const getShiftReport = async (): Promise<ShiftReport> => {
 export const updateProduct = async (id: number, productData: Partial<Product>): Promise<Product> => {
   const response = await API.put(`/products/${id}`, productData);
   return response.data;
+};
+
+export const getUsers = async (): Promise<User[]> => {
+  const response = await API.get('/auth/users');
+  return response.data;
+};
+
+export const createUser = async (data: UserCreatePayload): Promise<User> => {
+  const response = await API.post('/auth/users', data);
+  return response.data;
+};
+
+export const updateUser = async (id: number, data: Partial<UserCreatePayload>): Promise<User> => {
+  const response = await API.put(`/auth/users/${id}`, data);
+  return response.data;
+};
+
+export const deleteUser = async (id: number): Promise<void> => {
+  await API.delete(`/auth/users/${id}`);
 };

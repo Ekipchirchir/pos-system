@@ -73,3 +73,15 @@ export interface ShiftReport {
 export interface StockInRequest {
   quantity_to_add: number;
 }
+
+export interface User {
+  id: number;
+  username: string;
+  role: 'manager' | 'cashier';
+}
+
+export interface UserCreatePayload {
+  username: string;
+  password?: string;
+  role: 'manager' | 'cashier';
+}
