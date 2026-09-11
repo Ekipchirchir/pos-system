@@ -72,3 +72,21 @@ def get_low_stock_products(threshold: int = 5, db: Session = Depends(get_db)):
     """
     low_stock_items = db.query(models.Product).filter(models.Product.stock_quantity <= threshold).all()
     return low_stock_items
+
+@router.post("/{product_id}/stock-in/", response_model=schemas.ProductResponse, dependencies=[Depends(auth.require_role("manager"))])
+def stock_in_product(product_id: int, stock_data: schemas.StockInRequest, db: Session = Depends(get_db)):
+    """
+    Increments the stock quantity of a specific product by the delivered amount.
+    Restricted to managers.
+    """
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    if stock_data.quantity_to_add <=0:
+        raise HTTPException(status_code=400, detail="Quantity to add must be greater than zero")
+
+    product.stock_quantity += stock_data.quantity_to_add
+    db.commit()
+    db.refresh(product)
+    return product
