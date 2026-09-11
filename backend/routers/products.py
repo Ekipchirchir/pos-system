@@ -23,9 +23,11 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
     return new_product
 
 @router.get("/", response_model=list[schemas.ProductResponse], dependencies=[Depends(auth.get_current_user)])
-def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    products = db.query(models.Product).offset(skip).limit(limit).all()
-    return products
+def get_products(skip: int = 0, limit: int | None = None, db: Session = Depends(get_db)):
+    query = db.query(models.Product).offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 @router.put("/{product_id}", response_model=schemas.ProductResponse, dependencies=[Depends(auth.require_role("manager"))])
 def update_product_full(product_id: int, product_data: schemas.ProductCreate, db: Session = Depends(get_db)):
