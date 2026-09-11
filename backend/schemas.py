@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from datetime import datetime
 from enum import Enum
 
 class ProductCreate(BaseModel):
@@ -28,10 +29,25 @@ class SaleCreate(BaseModel):
     items: List[SaleItemCreate]
     payment_method: PaymentMethod = PaymentMethod.cash
 
+class SaleItemResponse(BaseModel):
+    id: int
+    product_id: int
+    quantity: int
+    unit_price: float
+    subtotal: float
+
+    class Config:
+        from_attributes = True
+
 class SaleResponse(BaseModel):
     id: int
     total_amount: float
     payment_method: str
+    created_at: datetime
+    fiscal_invoice_number: str | None = None
+    qr_code_data: str | None = None
+    vscu_response_code: str | None = None
+    items: List[SaleItemResponse]
 
     class Config:
         from_attributes = True

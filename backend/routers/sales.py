@@ -6,6 +6,7 @@ import models
 import schemas
 import auth
 from services.mpesa import trigger_stk_push
+from services.etims import submit_to_etims
 
 router = APIRouter(
     prefix="/sales",
@@ -36,6 +37,7 @@ def create_sale(sale_data: schemas.SaleCreate, db: Session = Depends(get_db)):
 
         sale_items_to_create.append({
             "product_id": product.id,
+            "product_name": product.name,  # Included for eTIMS item name mapping
             "quantity": item.quantity,
             "unit_price": product.selling_price,
             "subtotal": item_total
@@ -52,13 +54,26 @@ def create_sale(sale_data: schemas.SaleCreate, db: Session = Depends(get_db)):
 
     # Record individual items tied to the sale
     for item_data in sale_items_to_create:
+        # Pop product_name since SaleItem table model doesn't have it as a column
+        item_payload = {k: v for k, v in item_data.items() if k != "product_name"}
         sale_item = models.SaleItem(
             sale_id=new_sale.id,
-            **item_data
+            **item_payload
         )
         db.add(sale_item)
 
     db.commit()
+
+    # Apply mock eTIMS data
+    try:
+        etims_resp = submit_to_etims(new_sale, sale_items_to_create)
+        new_sale.fiscal_invoice_number = etims_resp.get("fiscalInvcNo")
+        new_sale.qr_code_data = etims_resp.get("qrCodeUrl")
+        new_sale.vscu_response_code = etims_resp.get("resultCd")
+        db.commit()
+    except Exception as e:
+        print(f"Mock eTIMS transmission error: {e}")
+
     db.refresh(new_sale)
     return new_sale
 

@@ -22,6 +22,10 @@ class Sale(Base):
     total_amount = Column(Float, nullable=False)
     payment_method = Column(String, default="cash", nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    
+    fiscal_invoice_number = Column(String, unique=True, index=True, nullable=True)
+    qr_code_data = Column(String, nullable=True)
+    vscu_response_code = Column(String, nullable=True)
 
     items = relationship("SaleItem", back_populates="sale")
 
