@@ -5,6 +5,7 @@ from database import get_db
 import models
 import schemas
 import auth
+from services.mpesa import trigger_stk_push
 
 router = APIRouter(
     prefix="/sales",
@@ -107,3 +108,36 @@ def get_shift_report(db: Session = Depends(get_db)):
         "items_sold": items_sold,
         "current_inventory": current_inventory
     }
+
+
+@router.post("/mpesa/stk-push", dependencies=[Depends(auth.get_current_user)])
+def initiate_mpesa_payment(phone_number: str, amount: float, order_ref: str):
+    """
+    Triggers an M-Pesa STK Push prompt to the customer's phone.
+    """
+    # Format phone number
+    if phone_number.startswith("0"):
+        phone_number = "254" + phone_number[1:]
+        
+    result = trigger_stk_push(phone_number, amount, order_ref)
+    return {"message": "STK push initiated successfully", "daraja_response": result}
+
+@router.post("/mpesa/callback")
+async def mpesa_callback(payload: dict):
+    """
+    Receives payment confirmation or failure results from Safaricom.
+    """
+    stk_callback = payload.get("Body", {}).get("stkCallback", {})
+    result_code = stk_callback.get("ResultCode")
+    checkout_request_id = stk_callback.get("CheckoutRequestID")
+    
+    if result_code == 0:
+        # Payment successful - extract MpesaReceiptNumber and update order/sale status in DB
+        callback_metadata = stk_callback.get("CallbackMetadata", {}).get("Item", [])
+        receipt_number = next((item["Value"] for item in callback_metadata if item["Name"] == "MpesaReceiptNumber"), None)
+        print(f"Payment successful for Checkout ID {checkout_request_id}. Receipt: {receipt_number}")
+    else:
+        # Payment failed
+        print(f"Payment failed for Checkout ID {checkout_request_id}. Reason: {stk_callback.get('ResultDesc')}")
+        
+    return {"ResultCode": 0, "ResultDesc": "Accepted"}
