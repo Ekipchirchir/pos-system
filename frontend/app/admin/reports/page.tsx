@@ -1,40 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
 import { getShiftReport } from '@/services/api';
 import { ShiftReport } from '@/types';
 import { HiCurrencyDollar, HiShoppingBag, HiCube, HiArrowDownTray } from 'react-icons/hi2';
 
 export default function ReportsPage() {
-  const [report, setReport] = useState<ShiftReport | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: report, isLoading: loading, error: queryError } = useQuery<ShiftReport, Error>({
+    queryKey: ['shiftReport'],
+    queryFn: getShiftReport,
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function fetchReportData() {
-      try {
-        const data = await getShiftReport();
-        if (isMounted) {
-          setReport(data);
-          setLoading(false);
-        }
-      } catch (err: unknown) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load shift report metrics');
-          setLoading(false);
-        }
-      }
-    }
-
-    fetchReportData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const error = queryError ? queryError.message : null;
 
   const totalRevenueAllItems = report?.items_sold.reduce((acc, item) => acc + item.total_revenue, 0) || 0;
   const lowStockCount = report?.current_inventory.filter((item) => item.remaining_stock <= 5).length || 0;

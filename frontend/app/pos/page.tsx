@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
 import Image from 'next/image';
 import { getProducts, createSale, initiateMpesaPayment } from '@/services/api';
@@ -12,14 +13,13 @@ interface CartItem extends Product {
 }
 
 export default function POSPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const queryClient = useQueryClient();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'mpesa'>('cash');
   const [phone, setPhone] = useState('');
   const [cashReceived, setCashReceived] = useState<string>('');
-  const [loading, setLoading] = useState(false);
   const [completedSale, setCompletedSale] = useState<SaleResponse | null>(null);
   
   const [cashierName] = useState<string>(() => {
@@ -37,10 +37,42 @@ export default function POSPage() {
   
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    getProducts().then(setProducts).catch(console.error);
-    barcodeInputRef.current?.focus();
-  }, []);
+  const { data: products = [] } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const data = await getProducts();
+      barcodeInputRef.current?.focus();
+      return data;
+    },
+  });
+
+  const checkoutMutation = useMutation({
+    mutationFn: async () => {
+      const salePayload = {
+        items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
+        payment_method: paymentMethod,
+      };
+
+      const saleResponse = await createSale(salePayload);
+
+      if (paymentMethod === 'mpesa' && phone) {
+        await initiateMpesaPayment(phone, totalAmount, `INV-${saleResponse.id}`, saleResponse.id);
+      }
+
+      return saleResponse;
+    },
+    onSuccess: (saleResponse) => {
+      setCompletedSale(saleResponse);
+      setCart([]);
+      setCashReceived('');
+      setPhone('');
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+    onError: (err: unknown) => {
+      const errorMessage = err instanceof Error ? err.message : 'Checkout failed';
+      alert(errorMessage);
+    },
+  });
 
   const categories = ['All', ...Array.from(new Set(products.map((p) => p.unit_type || 'bottle')))];
 
@@ -85,32 +117,9 @@ export default function POSPage() {
     }
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (cart.length === 0) return;
-    setLoading(true);
-
-    try {
-      const salePayload = {
-        items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
-        payment_method: paymentMethod,
-      };
-
-      const saleResponse = await createSale(salePayload);
-
-      if (paymentMethod === 'mpesa' && phone) {
-        await initiateMpesaPayment(phone, totalAmount, `INV-${saleResponse.id}`, saleResponse.id);
-      }
-
-      setCompletedSale(saleResponse);
-      setCart([]);
-      setCashReceived('');
-      setPhone('');
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Checkout failed';
-      alert(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+    checkoutMutation.mutate();
   };
 
   const filteredProducts = products.filter((p) => {
@@ -280,10 +289,10 @@ export default function POSPage() {
 
             <button
               onClick={handleCheckout}
-              disabled={loading || cart.length === 0 || (paymentMethod === 'cash' && cashChange < 0)}
+              disabled={checkoutMutation.isPending || cart.length === 0 || (paymentMethod === 'cash' && cashChange < 0)}
               className="w-full py-2.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-xs sm:text-sm transition-colors shadow-lg disabled:opacity-50"
             >
-              {loading ? 'Processing...' : 'Complete Sale'}
+              {checkoutMutation.isPending ? 'Processing...' : 'Complete Sale'}
             </button>
           </div>
         </div>

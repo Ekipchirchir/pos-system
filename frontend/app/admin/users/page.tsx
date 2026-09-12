@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/api';
 import { User } from '@/types';
 import { HiUsers, HiPlus, HiMagnifyingGlass, HiPencilSquare, HiTrash, HiXMark } from 'react-icons/hi2';
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -16,65 +17,54 @@ export default function UsersPage() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'manager' | 'cashier'>('cashier');
 
-  const fetchUsers = async () => {
-    try {
-      const data = await getUsers();
-      setUsers(data);
-    } catch (err) {
-      console.error('Failed to load users', err);
-    }
-  };
+  const { data: users = [] } = useQuery<User[], Error>({
+    queryKey: ['users'],
+    queryFn: getUsers,
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-    
-    async function loadUsers() {
-      try {
-        const data = await getUsers();
-        if (isMounted) {
-          setUsers(data);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Failed to load users', err);
-        }
-      }
-    }
-
-    loadUsers();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const handleSaveUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
+  const saveUserMutation = useMutation({
+    mutationFn: async () => {
       if (editingUser) {
         const payload: { username?: string; role?: 'manager' | 'cashier'; password?: string } = { username, role };
         if (password) payload.password = password;
-        await updateUser(editingUser.id, payload);
+        return await updateUser(editingUser.id, payload);
       } else {
-        await createUser({ username, password, role });
+        return await createUser({ username, password, role });
       }
+    },
+    onSuccess: () => {
       closeDrawer();
-      await fetchUsers();
-    } catch (err: unknown) {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : 'Operation failed';
       alert(errorMessage);
-    }
-  };
+    },
+  });
 
-  const handleDeleteUser = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
-    try {
-      await deleteUser(id);
-      await fetchUsers();
-    } catch (err: unknown) {
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await deleteUser(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete user';
       alert(errorMessage);
-    }
+    },
+  });
+
+  const handleSaveUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveUserMutation.mutate();
+  };
+
+  const handleDeleteUser = (id: number) => {
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    deleteUserMutation.mutate(id);
   };
 
   const openEditDrawer = (user: User) => {
@@ -174,7 +164,8 @@ export default function UsersPage() {
                       </button>
                       <button
                         onClick={() => handleDeleteUser(user.id)}
-                        className="inline-flex items-center gap-1 px-2.5 lg:px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[11px] lg:text-xs font-medium transition-colors"
+                        disabled={deleteUserMutation.isPending}
+                        className="inline-flex items-center gap-1 px-2.5 lg:px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[11px] lg:text-xs font-medium transition-colors disabled:opacity-50"
                       >
                         <HiTrash className="text-xs lg:text-sm" /> <span className="hidden sm:inline">Delete</span>
                       </button>
@@ -257,9 +248,10 @@ export default function UsersPage() {
           <button
             type="submit"
             form="user-form"
-            className="w-1/2 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-xs lg:text-sm transition-colors shadow-md"
+            disabled={saveUserMutation.isPending}
+            className="w-1/2 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-xs lg:text-sm transition-colors shadow-md disabled:opacity-50"
           >
-            {editingUser ? 'Save Changes' : 'Create User'}
+            {saveUserMutation.isPending ? 'Saving...' : editingUser ? 'Save Changes' : 'Create User'}
           </button>
         </div>
       </div>

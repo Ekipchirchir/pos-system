@@ -1,33 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
 import { getShiftReport, getProducts } from '@/services/api';
 import { ShiftReport, Product } from '@/types';
 import { HiCurrencyDollar, HiShoppingBag, HiExclamationTriangle, HiArrowTrendingUp } from 'react-icons/hi2';
 
 export default function AdminDashboard() {
-  const [report, setReport] = useState<ShiftReport | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: report, isLoading: isReportLoading } = useQuery<ShiftReport>({
+    queryKey: ['shiftReport'],
+    queryFn: getShiftReport,
+  });
 
-  useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        const [shiftData, productData] = await Promise.all([
-          getShiftReport(),
-          getProducts(),
-        ]);
-        setReport(shiftData);
-        setProducts(productData);
-      } catch (err) {
-        console.error('Failed to load dashboard metrics', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchDashboardData();
-  }, []);
+  const { data: products = [], isLoading: isProductsLoading } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: getProducts,
+  });
+
+  const loading = isReportLoading || isProductsLoading;
 
   const lowStockProducts = products.filter((p) => p.stock_quantity <= 5);
   const totalRevenueAllItems = report?.items_sold.reduce((acc, item) => acc + item.total_revenue, 0) || 0;

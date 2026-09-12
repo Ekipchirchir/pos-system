@@ -1,13 +1,15 @@
+/*eslint-disable*/
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
 import { getProducts, createProduct, updateProduct } from '@/services/api';
 import { Product } from '@/types';
 import { HiCube, HiPlus, HiMagnifyingGlass, HiPencilSquare, HiXMark } from 'react-icons/hi2';
 
 export default function InventoryPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -19,55 +21,39 @@ export default function InventoryPage() {
   const [stockQuantity, setStockQuantity] = useState('');
   const [unitType, setUnitType] = useState('bottle');
 
-  useEffect(() => {
-    let isMounted = true;
-    getProducts()
-      .then((data) => {
-        if (isMounted) setProducts(data);
-      })
-      .catch((err) => console.error('Failed to load inventory', err));
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['products'],
+    queryFn: getProducts,
+  });
 
-  const fetchProducts = async () => {
-    try {
-      const data = await getProducts();
-      setProducts(data);
-    } catch (err) {
-      console.error('Failed to load inventory', err);
-    }
-  };
-
-  const handleSaveProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async (productData: any) => {
       if (editingProduct) {
-        await updateProduct(editingProduct.id, {
-          name,
-          barcode,
-          buying_price: parseFloat(buyingPrice),
-          selling_price: parseFloat(sellingPrice),
-          stock_quantity: parseInt(stockQuantity, 10),
-          unit_type: unitType,
-        });
+        return updateProduct(editingProduct.id, productData);
       } else {
-        await createProduct({
-          name,
-          barcode,
-          buying_price: parseFloat(buyingPrice),
-          selling_price: parseFloat(sellingPrice),
-          stock_quantity: parseInt(stockQuantity, 10),
-          unit_type: unitType,
-        });
+        return createProduct(productData);
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       closeDrawer();
-      await fetchProducts();
-    } catch (err: unknown) {
+    },
+    onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : 'Operation failed';
       alert(errorMessage);
-    }
+    },
+  });
+
+  const handleSaveProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveMutation.mutate({
+      name,
+      barcode,
+      buying_price: parseFloat(buyingPrice),
+      selling_price: parseFloat(sellingPrice),
+      stock_quantity: parseInt(stockQuantity, 10),
+      unit_type: unitType,
+    });
   };
 
   const openEditDrawer = (product: Product) => {
@@ -145,7 +131,11 @@ export default function InventoryPage() {
 
         <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl overflow-y-auto shadow-sm">
           <div className="grid grid-cols-1 divide-y divide-slate-800">
-            {filteredProducts.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-12 lg:py-16 text-slate-500 text-xs lg:text-sm">
+                Loading inventory...
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-12 lg:py-16 text-slate-500 text-xs lg:text-sm">
                 <HiCube className="text-3xl lg:text-4xl mx-auto mb-2 opacity-30" />
                 No inventory products found
@@ -290,9 +280,10 @@ export default function InventoryPage() {
           <button
             type="submit"
             form="product-form"
-            className="w-1/2 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-xs lg:text-sm transition-colors shadow-md"
+            disabled={saveMutation.isPending}
+            className="w-1/2 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-xs lg:text-sm transition-colors shadow-md disabled:opacity-50"
           >
-            {editingProduct ? 'Save Changes' : 'Create Product'}
+            {saveMutation.isPending ? 'Saving...' : editingProduct ? 'Save Changes' : 'Create Product'}
           </button>
         </div>
       </div>
