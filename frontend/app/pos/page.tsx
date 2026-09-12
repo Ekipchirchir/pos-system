@@ -261,7 +261,7 @@ export default function POSPage() {
               <div className="space-y-1.5">
                 <input
                   type="number"
-                  placeholder="Cash Tendered (Ksh)"
+                  placeholder="Cash Paid (Ksh)"
                   value={cashReceived}
                   onChange={(e) => setCashReceived(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-medium"
