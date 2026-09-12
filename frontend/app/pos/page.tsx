@@ -39,11 +39,7 @@ export default function POSPage() {
 
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
-    queryFn: async () => {
-      const data = await getProducts();
-      barcodeInputRef.current?.focus();
-      return data;
-    },
+    queryFn: getProducts,
   });
 
   const checkoutMutation = useMutation({
