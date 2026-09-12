@@ -60,7 +60,7 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
-    router.push('/login');
+    router.push('/');
   };
 
   const operationsNav = [
