@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
+import Image from 'next/image';
 import { getProducts, createSale, initiateMpesaPayment } from '@/services/api';
 import { Product, SaleResponse } from '@/types';
-import { HiShoppingBag, HiTrash, HiCheckCircle, HiQrCode, HiCurrencyDollar, HiDevicePhoneMobile } from 'react-icons/hi2';
+import { HiShoppingBag, HiTrash, HiQrCode, HiCurrencyDollar, HiDevicePhoneMobile } from 'react-icons/hi2';
 
 interface CartItem extends Product {
   quantity: number;
@@ -19,7 +20,20 @@ export default function POSPage() {
   const [phone, setPhone] = useState('');
   const [cashReceived, setCashReceived] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [completedSale, setCompletedSale] = useState<SaleResponse | null>(false as unknown as null);
+  const [completedSale, setCompletedSale] = useState<SaleResponse | null>(null);
+  
+  const [cashierName] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'System Admin';
+    const token = localStorage.getItem('access_token');
+    if (!token) return 'System Admin';
+    try {
+      const payloadBase64 = token.split('.')[1];
+      const decodedPayload = JSON.parse(atob(payloadBase64));
+      return decodedPayload?.sub || 'System Admin';
+    } catch {
+      return 'System Admin';
+    }
+  });
   
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -127,12 +141,12 @@ export default function POSPage() {
                 placeholder="Scan barcode or search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-blue-600 font-mono"
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-blue-600 font-medium"
               />
             </form>
           </header>
 
-          <div className="flex gap-2 mb-4 overflow-x-auto pb-1 shrink-0">
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-1 shrink-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {categories.map((cat) => (
               <button
                 key={cat}
@@ -148,7 +162,7 @@ export default function POSPage() {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-4 pr-2 pb-6">
+          <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-4 pr-2 pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {filteredProducts.map((product) => (
               <button
                 key={product.id}
@@ -162,7 +176,7 @@ export default function POSPage() {
               >
                 <div>
                   <h3 className="font-semibold text-white line-clamp-1">{product.name}</h3>
-                  <span className="text-xs text-slate-500 font-mono">{product.barcode}</span>
+                  <span className="text-xs text-slate-500 font-medium">{product.barcode}</span>
                 </div>
                 <div className="mt-4 flex justify-between items-end">
                   <span className="text-green-400 font-bold">Ksh {product.selling_price.toLocaleString()}</span>
@@ -269,29 +283,109 @@ export default function POSPage() {
               disabled={loading || cart.length === 0 || (paymentMethod === 'cash' && cashChange < 0)}
               className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-sm transition-colors shadow-lg disabled:opacity-50"
             >
-              {loading ? 'Processing...' : 'Complete  Sale'}
+              {loading ? 'Processing...' : 'Complete Sale'}
             </button>
           </div>
         </div>
       </main>
 
       {completedSale && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
-            <HiCheckCircle className="text-green-500 text-5xl mx-auto" />
-            <h3 className="text-lg font-bold text-white">Sale Fiscalized Successfully</h3>
-            <div className="bg-slate-950 p-3.5 rounded-xl text-left text-xs space-y-1.5 font-mono text-slate-300 border border-slate-800">
-              <div>Invoice #: {completedSale.fiscal_invoice_number}</div>
-              <div>Total Paid: Ksh {completedSale.total_amount.toLocaleString()}</div>
-              <div>Payment Mode: {completedSale.payment_method.toUpperCase()}</div>
-              <div>VSCU Code: {completedSale.vscu_response_code}</div>
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-50 print:bg-white print:block print:p-0 print:m-0 print:absolute print:inset-0">
+          <div className="flex flex-col gap-4 max-w-sm w-full max-h-[90vh] print:w-[80mm] print:max-w-none print:mx-auto print:max-h-none">
+            
+            {/* Scrollable Container for Modal Viewing */}
+            <div className="bg-white text-slate-800 p-6 rounded-2xl w-full font-sans text-xs leading-relaxed shadow-2xl overflow-y-auto max-h-[calc(90vh-80px)] print:shadow-none print:p-4 print:m-0 print:rounded-none print:max-h-none print:overflow-visible border border-slate-100">
+              <div className="text-center flex flex-col items-center mb-4">
+                <div className="relative w-12 h-12 rounded-xl overflow-hidden mb-2 border border-slate-200 shadow-sm bg-slate-50">
+                  <Image 
+                    src="/images/logo/logo.png" 
+                    alt="Logo" 
+                    fill 
+                    className="object-cover"
+                  />
+                </div>
+                <h2 className="font-bold text-base uppercase tracking-wider text-slate-900">Wines & Spirits</h2>
+                <p className="text-slate-500 text-[11px]">Nairobi, Kenya | Tel: +254 700 000 000</p>
+              </div>
+
+              <div className="border-t border-b border-slate-200 py-2.5 mb-3 space-y-1.5 text-slate-600 text-[11px] font-mono">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-sans">Date:</span>
+                  <span className="font-semibold text-slate-800">{new Date(completedSale.created_at).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-sans">Receipt No:</span>
+                  <span className="font-semibold text-slate-800">#{completedSale.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-sans">Cashier:</span>
+                  <span className="font-semibold text-slate-800 capitalize">{cashierName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-sans">Payment Mode:</span>
+                  <span className="font-semibold text-slate-800 uppercase">{completedSale.payment_method}</span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <table className="w-full text-left font-mono text-[11px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 text-[10px] uppercase tracking-wider font-sans">
+                      <th className="pb-1.5 font-semibold w-1/2">Item</th>
+                      <th className="pb-1.5 font-semibold text-center w-1/6">Qty</th>
+                      <th className="pb-1.5 font-semibold text-right w-1/3">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {completedSale.items.map((item) => {
+                      const product = products.find(p => p.id === item.product_id);
+                      return (
+                        <tr key={item.id} className="align-top">
+                          <td className="py-2 pr-1 wrap-break-word font-sans font-medium text-slate-800">{product?.name || `Item #${item.product_id}`}</td>
+                          <td className="py-2 text-center text-slate-600">{item.quantity}</td>
+                          <td className="py-2 text-right font-semibold text-slate-900">{(item.quantity * item.unit_price).toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="border-t border-slate-200 pt-2.5 mb-4 space-y-1 font-mono">
+                <div className="flex justify-between items-center text-sm font-bold text-slate-900">
+                  <span className="font-sans text-xs text-slate-500 uppercase tracking-wider">Total Due:</span>
+                  <span className="text-blue-600 text-base">Ksh {completedSale.total_amount.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {completedSale.fiscal_invoice_number && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center space-y-0.5 mb-4 text-[10px] text-slate-600 font-mono">
+                  <p className="font-bold text-slate-800 uppercase tracking-wider font-sans">KRA eTIMS Fiscal Receipt</p>
+                  <p><span className="text-slate-400">Inv:</span> {completedSale.fiscal_invoice_number}</p>
+                  <p><span className="text-slate-400">VSCU:</span> {completedSale.vscu_response_code}</p>
+                </div>
+              )}
+
+              <div className="text-center pt-3 border-t border-dashed border-slate-200 text-slate-500 text-[11px] space-y-0.5 font-sans">
+                <p className="font-bold text-slate-800">Thank you for shopping with us!</p>
+                <p className="text-slate-400 text-[10px]">Please come again.</p>
+              </div>
             </div>
-            <button
-              onClick={() => setCompletedSale(null)}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-sm transition-colors shadow-md"
-            >
-              New Transaction
-            </button>
+
+            <div className="flex gap-3 print:hidden shrink-0">
+              <button
+                onClick={() => window.print()}
+                className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-xl text-sm transition-colors border border-slate-700 shadow-md"
+              >
+                Print Receipt
+              </button>
+              <button
+                onClick={() => setCompletedSale(null)}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-sm transition-colors shadow-md"
+              >
+                New Transaction
+              </button>
+            </div>
           </div>
         </div>
       )}

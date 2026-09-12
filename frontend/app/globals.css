@@ -45,3 +45,14 @@ body {
   color: var(--foreground);
   font-family: var(--font-custom);
 }
+
+@media print {
+  @page {
+    margin: 0;
+    size: 80mm auto; 
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
