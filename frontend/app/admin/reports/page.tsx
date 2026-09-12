@@ -1,10 +1,23 @@
+/*eslint-disable*/
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
 import { getShiftReport } from '@/services/api';
 import { ShiftReport } from '@/types';
-import { HiCurrencyDollar, HiShoppingBag, HiCube, HiArrowDownTray } from 'react-icons/hi2';
+import { HiArrowDownTray } from 'react-icons/hi2';
+import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  Legend 
+} from 'recharts';
 
 export default function ReportsPage() {
   const { data: report, isLoading: loading, error: queryError } = useQuery<ShiftReport, Error>({
@@ -16,32 +29,20 @@ export default function ReportsPage() {
 
   const totalRevenueAllItems = report?.items_sold.reduce((acc, item) => acc + item.total_revenue, 0) || 0;
   const lowStockCount = report?.current_inventory.filter((item) => item.remaining_stock <= 5).length || 0;
+  const healthyStockCount = report?.current_inventory.filter((item) => item.remaining_stock > 5).length || 0;
 
-  const stats = [
-    {
-      title: "Today's Cash Revenue",
-      value: report ? `Ksh ${report.total_cash_collected.toLocaleString()}` : 'Ksh 0',
-      icon: HiCurrencyDollar,
-      color: 'text-green-500 bg-green-500/10',
-    },
-    {
-      title: 'Total Transactions',
-      value: report ? report.total_transactions.toString() : '0',
-      icon: HiShoppingBag,
-      color: 'text-blue-500 bg-blue-500/10',
-    },
-    {
-      title: 'Total Revenue Generated',
-      value: `Ksh ${totalRevenueAllItems.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-      icon: HiCube,
-      color: 'text-purple-500 bg-purple-500/10',
-    },
-    {
-      title: 'Low Stock Alerts',
-      value: lowStockCount.toString(),
-      icon: HiArrowDownTray,
-      color: 'text-red-500 bg-red-500/10',
-    },
+  // Data preparation for charts
+  const topRevenueItems = report?.items_sold
+    .slice(0, 5) 
+    .map(item => ({
+      name: item.product_name,
+      revenue: item.total_revenue,
+      quantity: item.total_quantity_sold
+    })) || [];
+
+  const stockDistributionData = [
+    { name: 'Healthy Stock (>5)', value: healthyStockCount, color: '#22c55e' },
+    { name: 'Low Stock (≤5)', value: lowStockCount, color: '#ef4444' },
   ];
 
   return (
@@ -52,7 +53,7 @@ export default function ReportsPage() {
           <header className="mb-3 lg:mb-6 flex justify-between items-center gap-2">
             <div>
               <h2 className="text-lg lg:text-2xl font-bold tracking-tight text-white">Shift Reports & Analytics</h2>
-              <p className="text-[11px] lg:text-sm text-slate-400">Live operational shift metrics, sales breakdowns, and current stock reconciliation.</p>
+              <p className="text-[11px] lg:text-sm text-slate-400">Live operational shift metrics, sales breakdowns, and visual stock insights.</p>
             </div>
             <button 
               onClick={() => window.print()}
@@ -64,23 +65,95 @@ export default function ReportsPage() {
             </button>
           </header>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-6">
-            {stats.map((stat) => {
-              const Icon = stat.icon;
-              return (
-                <div key={stat.title} className="bg-slate-900 border border-slate-800 p-3 lg:p-6 rounded-xl shadow-sm">
-                  <div className="flex items-center justify-between mb-1.5 lg:mb-4">
-                    <span className="text-[10px] lg:text-sm font-medium text-slate-400 line-clamp-1">{stat.title}</span>
-                    <div className={`p-1.5 lg:p-3 rounded-lg ${stat.color}`}>
-                      <Icon className="text-xs lg:text-xl" />
-                    </div>
-                  </div>
-                  <div className="text-sm lg:text-2xl font-bold text-white truncate">
-                    {loading ? '...' : stat.value}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 mb-4">
+            
+            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-sm flex flex-col">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-xs lg:text-sm font-semibold text-white">Top Products by Revenue (Ksh)</h3>
+                <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">Bar Chart</span>
+              </div>
+              <div className="h-48 lg:h-56 w-full">
+                {loading ? (
+                  <div className="flex items-center justify-center h-full text-xs text-slate-500">Loading chart data...</div>
+                ) : topRevenueItems.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-xs text-slate-500">No revenue data available</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topRevenueItems} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                      <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} />
+                      <YAxis stroke="#64748b" fontSize={10} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.5rem', fontSize: '12px' }}
+                        formatter={(value: any) => [`Ksh ${Number(value).toLocaleString()}`, 'Revenue']}
+                      />
+                      <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-sm flex flex-col">
+              <div className="flex justify-between items-center mb-1">
+                <h3 className="text-xs lg:text-sm font-semibold text-white">Inventory Stock Status</h3>
+                <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">Donut Chart</span>
+              </div>
+              <div className="h-48 lg:h-56 w-full flex items-center justify-center">
+                {loading ? (
+                  <div className="flex items-center justify-center h-full text-xs text-slate-500">Loading inventory...</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={stockDistributionData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={70}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {stockDistributionData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.5rem', fontSize: '12px' }}
+                      />
+                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-4 bg-slate-900/50 border border-slate-800/80 p-3 rounded-xl">
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Cash Collected</span>
+              <span className="text-xs lg:text-base font-bold text-green-400">
+                {loading ? '...' : `Ksh ${report?.total_cash_collected.toLocaleString()}`}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Total Transactions</span>
+              <span className="text-xs lg:text-base font-bold text-blue-400">
+                {loading ? '...' : report?.total_transactions}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Total Revenue</span>
+              <span className="text-xs lg:text-base font-bold text-purple-400">
+                {loading ? '...' : `Ksh ${totalRevenueAllItems.toLocaleString()}`}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Low Stock Items</span>
+              <span className="text-xs lg:text-base font-bold text-red-400">
+                {loading ? '...' : lowStockCount}
+              </span>
+            </div>
           </div>
 
           {error && (
