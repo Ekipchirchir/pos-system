@@ -64,29 +64,29 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-screen bg-slate-950 text-slate-100 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 flex flex-col ml-64 h-full p-8 overflow-hidden">
-        <div className="shrink-0 mb-6">
+      <main className="flex-1 flex flex-col ml-0 lg:ml-64 h-full p-3.5 lg:p-8 pb-20 lg:pb-8 overflow-y-auto lg:overflow-hidden">
+        <div className="shrink-0 mb-3 lg:mb-6">
           <header>
-            <h2 className="text-2xl font-bold tracking-tight">Admin Command Center</h2>
-            <p className="text-sm text-slate-400">Real-time oversight of store liquidity, sales velocity, and inventory health.</p>
+            <h2 className="text-lg lg:text-2xl font-bold tracking-tight">Admin Command Center</h2>
+            <p className="text-[11px] lg:text-sm text-slate-400">Real-time oversight of store liquidity, sales velocity, and inventory health.</p>
           </header>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-6 pr-2 pb-6 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="flex-1 lg:overflow-y-auto space-y-3.5 lg:space-y-6 pr-0 lg:pr-2 pb-6 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 lg:gap-6">
             {stats.map((stat) => {
               const Icon = stat.icon;
               return (
-                <div key={stat.title} className={`${stat.cardBg} border p-6 rounded-xl shadow-sm backdrop-blur-sm`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-medium text-slate-200">{stat.title}</span>
-                    <div className={`p-3 rounded-lg ${stat.iconBg}`}>
-                      <Icon className="text-xl" />
+                <div key={stat.title} className={`${stat.cardBg} border p-3 lg:p-6 rounded-xl shadow-sm backdrop-blur-sm`}>
+                  <div className="flex items-center justify-between mb-1.5 lg:mb-4">
+                    <span className="text-[10px] lg:text-sm font-medium text-slate-200 line-clamp-1">{stat.title}</span>
+                    <div className={`p-1.5 lg:p-3 rounded-lg ${stat.iconBg}`}>
+                      <Icon className="text-xs lg:text-xl" />
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-white">
+                  <div className="text-sm lg:text-2xl font-bold text-white truncate">
                     {loading ? '...' : stat.value}
                   </div>
                 </div>
@@ -94,25 +94,24 @@ export default function AdminDashboard() {
             })}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm flex flex-col">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-white">Top Moving Products</h3>
-                <span className="text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full">Shift Performance</span>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-3 lg:p-6 shadow-sm flex flex-col">
+              <div className="flex justify-between items-center mb-2.5 lg:mb-4">
+                <h3 className="text-xs lg:text-lg font-semibold text-white truncate">Top Moving Products</h3>
               </div>
-              <div className="flex-1 overflow-y-auto space-y-3 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex-1 overflow-y-auto space-y-2 lg:space-y-3 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {loading ? (
-                  <div className="text-center py-8 text-slate-500 text-sm">Loading performance data...</div>
+                  <div className="text-center py-4 lg:py-8 text-slate-500 text-[11px] lg:text-sm">Loading performance data...</div>
                 ) : !report || report.items_sold.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500 text-sm">No sales recorded for this shift yet.</div>
+                  <div className="text-center py-4 lg:py-8 text-slate-500 text-[11px] lg:text-sm">No sales recorded for this shift yet.</div>
                 ) : (
                   report.items_sold.slice(0, 5).map((item, index) => (
-                    <div key={index} className="flex items-center justify-between bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-                      <div>
-                        <div className="font-medium text-white text-sm">{item.product_name}</div>
-                        <div className="text-xs text-slate-400 mt-0.5">{item.total_quantity_sold} units sold</div>
+                    <div key={index} className="flex items-center justify-between bg-slate-950 p-2 lg:p-3.5 rounded-xl border border-slate-800">
+                      <div className="min-w-0 pr-2">
+                        <div className="font-medium text-white text-[9px] lg:text-sm truncate">{item.product_name}</div>
+                        <div className="text-[9px] lg:text-xs text-slate-400 mt-0.5">{item.total_quantity_sold} units sold</div>
                       </div>
-                      <div className="text-right font-semibold text-green-400 text-sm">
+                      <div className="text-right font-semibold text-green-400 text-[11px] lg:text-sm shrink-0">
                         Ksh {item.total_revenue.toLocaleString()}
                       </div>
                     </div>
@@ -121,26 +120,26 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm flex flex-col">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-white">Stock Alerts</h3>
-                <span className="text-xs bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full font-medium border border-red-500/20">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-2 lg:p-6 shadow-sm flex flex-col">
+              <div className="flex justify-between items-center mb-2.5 lg:mb-4">
+                <h3 className="text-xs lg:text-lg font-semibold text-white truncate">Stock Alerts</h3>
+                <span className="text-[9px] lg:text-xs bg-red-500/10 text-red-400 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full font-medium border border-red-500/20 shrink-0">
                   {lowStockProducts.length} Critical
                 </span>
               </div>
-              <div className="flex-1 overflow-y-auto space-y-2.5 max-h-64 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex-1 overflow-y-auto space-y-2 max-h-62 lg:max-h-64 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {loading ? (
-                  <div className="text-center py-8 text-slate-500 text-sm">Checking stock levels...</div>
+                  <div className="text-center py-4 lg:py-8 text-slate-500 text-[11px] lg:text-sm">Checking stock levels...</div>
                 ) : lowStockProducts.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500 text-sm">All inventory levels are optimal.</div>
+                  <div className="text-center py-4 lg:py-8 text-slate-500 text-[11px] lg:text-sm">All inventory levels optimal.</div>
                 ) : (
                   lowStockProducts.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs">
-                      <div>
-                        <div className="font-medium text-white line-clamp-1">{p.name}</div>
+                    <div key={p.id} className="flex items-center justify-between bg-slate-950 p-2 lg:p-3 rounded-xl border border-slate-800 text-[10px] lg:text-xs">
+                      <div className="min-w-0 pr-1">
+                        <div className="font-medium text-white text-[9px] lg:text-sm  truncate">{p.name}</div>
                         <span className="text-red-400 font-semibold">{p.stock_quantity} {p.unit_type || 'units'} left</span>
                       </div>
-                      <span className="font-medium text-slate-500">{p.barcode}</span>
+                      <span className="font-medium text-slate-500 text-[9px] lg:text-xs shrink-0">{p.barcode}</span>
                     </div>
                   ))
                 )}
@@ -148,29 +147,29 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-            <h3 className="text-lg font-semibold mb-4 text-white">Infrastructure & Gateway Status</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 lg:p-6 shadow-sm">
+            <h3 className="text-xs lg:text-lg font-semibold mb-2.5 lg:mb-4 text-white">Infrastructure & Gateway Status</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 lg:gap-4 text-[11px] lg:text-sm">
+              <div className="bg-slate-950 p-2.5 lg:p-4 rounded-xl border border-slate-800 flex items-center justify-between">
                 <div>
-                  <div className="text-slate-400 text-xs mb-1">KRA eTIMS VSCU</div>
+                  <div className="text-slate-400 text-[9px] lg:text-xs mb-0.5">KRA eTIMS VSCU</div>
                   <div className="font-semibold text-white">Online & Fiscalizing</div>
                 </div>
-                <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
+                <span className="w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-green-500 animate-pulse"></span>
               </div>
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+              <div className="bg-slate-950 p-2.5 lg:p-4 rounded-xl border border-slate-800 flex items-center justify-between">
                 <div>
-                  <div className="text-slate-400 text-xs mb-1">M-Pesa Daraja Gateway</div>
+                  <div className="text-slate-400 text-[9px] lg:text-xs mb-0.5">M-Pesa Daraja Gateway</div>
                   <div className="font-semibold text-white">STK Push Active</div>
                 </div>
-                <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
+                <span className="w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-green-500 animate-pulse"></span>
               </div>
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+              <div className="bg-slate-950 p-2.5 lg:p-4 rounded-xl border border-slate-800 flex items-center justify-between">
                 <div>
-                  <div className="text-slate-400 text-xs mb-1">PostgreSQL Database</div>
+                  <div className="text-slate-400 text-[9px] lg:text-xs mb-0.5">PostgreSQL Database</div>
                   <div className="font-semibold text-white">Connected & Synced</div>
                 </div>
-                <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
+                <span className="w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-green-500 animate-pulse"></span>
               </div>
             </div>
           </div>
