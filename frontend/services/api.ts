@@ -1,3 +1,4 @@
+/*eslint-disable*/
 import axios from 'axios';
 import { Product, SaleRequest, SaleResponse, ShiftReport, StockInRequest, User, UserCreatePayload } from '@/types';
 
@@ -14,6 +15,17 @@ API.interceptors.request.use((config) => {
   }
   return config;
 });
+
+export interface BatchSyncResponse {
+  synced_count: number;
+  failed_count: number;
+  results: Array<{
+    client_sale_id: string;
+    server_sale_id: number | null;
+    status: 'success' | 'already_synced' | 'failed';
+    detail?: string;
+  }>;
+}
 
 export const getProducts = async (): Promise<Product[]> => {
   const response = await API.get('/products/');
@@ -32,6 +44,11 @@ export const stockInProduct = async (productId: number, data: StockInRequest): P
 
 export const createSale = async (saleData: SaleRequest): Promise<SaleResponse> => {
   const response = await API.post('/sales/', saleData);
+  return response.data;
+};
+
+export const syncOfflineSales = async (offlineSales: any[]): Promise<BatchSyncResponse> => {
+  const response = await API.post('/sales/sync', { offline_sales: offlineSales });
   return response.data;
 };
 

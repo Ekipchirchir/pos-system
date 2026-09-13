@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
 import Image from 'next/image';
 import { getProducts, createSale, initiateMpesaPayment } from '@/services/api';
+import { saveOfflineSale } from '@/utils/offlineStorage';
 import { Product, SaleResponse } from '@/types';
 import { HiShoppingBag, HiTrash, HiQrCode, HiCurrencyDollar, HiDevicePhoneMobile } from 'react-icons/hi2';
 
@@ -49,13 +50,55 @@ export default function POSPage() {
         payment_method: paymentMethod,
       };
 
-      const saleResponse = await createSale(salePayload);
+      const generateOfflineReceipt = (): SaleResponse => ({
+        id: Math.floor(Math.random() * 10000), 
+        total_amount: totalAmount,
+        payment_method: paymentMethod,
+        created_at: new Date().toISOString(),
+        items: cart.map(i => ({ 
+          id: i.id, 
+          product_id: i.id, 
+          quantity: i.quantity, 
+          unit_price: i.selling_price,
+          subtotal: i.selling_price * i.quantity 
+        })),
+        fiscal_invoice_number: 'OFFLINE-PENDING',
+        vscu_response_code: 'LOCAL_QUEUE',
+        qr_code_data: null
+      });
 
-      if (paymentMethod === 'mpesa' && phone) {
-        await initiateMpesaPayment(phone, totalAmount, `INV-${saleResponse.id}`, saleResponse.id);
+      if (!navigator.onLine) {
+        saveOfflineSale(salePayload);
+        return generateOfflineReceipt();
       }
 
-      return saleResponse;
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), 1500);
+      });
+
+      try {
+        const saleResponse = await Promise.race([
+          createSale(salePayload),
+          timeoutPromise
+        ]) as SaleResponse;
+
+        clearTimeout(timeoutId!);
+
+        if (paymentMethod === 'mpesa' && phone) {
+          try {
+            await initiateMpesaPayment(phone, totalAmount, `INV-${saleResponse.id}`, saleResponse.id);
+          } catch (mpesaError) {
+            console.warn("M-Pesa push failed, but sale was recorded:", mpesaError);
+          }
+        }
+
+        return saleResponse;
+      } catch {
+        clearTimeout(timeoutId!); 
+        saveOfflineSale(salePayload);
+        return generateOfflineReceipt();
+      }
     },
     onSuccess: (saleResponse) => {
       setCompletedSale(saleResponse);
@@ -239,7 +282,7 @@ export default function POSPage() {
           <div className="border-t border-slate-800 pt-2.5 sm:pt-3 space-y-2.5 mt-1.5 shrink-0">
             <div className="flex justify-between items-center text-sm sm:text-base font-bold">
               <span className="text-slate-300 text-xs sm:text-sm">Total Due:</span>
-              <span className="text-green-400 text-sm sm:text-lg font-mono">Ksh {totalAmount.toLocaleString()}</span>
+              <span className="text-green-400 text-sm sm:text-lg font-bold">Ksh {totalAmount.toLocaleString()}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
