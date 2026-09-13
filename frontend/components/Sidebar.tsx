@@ -12,6 +12,7 @@ import {
   HiArrowRightOnRectangle, 
   HiUsers 
 } from 'react-icons/hi2';
+import { HiSwitchHorizontal } from 'react-icons/hi';
 
 const EMPTY_USER = { username: '', role: '' };
 
@@ -65,6 +66,7 @@ export default function Sidebar() {
 
   const operationsNav = [
     { name: 'POS Checkout', href: '/pos', icon: HiShoppingBag },
+    {name: 'Sales', href: '/sales', icon: HiSwitchHorizontal }
   ];
 
   const managementNav = [

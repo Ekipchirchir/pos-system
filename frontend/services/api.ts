@@ -27,6 +27,32 @@ export interface BatchSyncResponse {
   }>;
 }
 
+export interface ProductNested {
+  id: number;
+  name: string;
+  barcode: string;
+}
+
+export interface SaleItemDetail {
+  id: number;
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  product?: ProductNested | null;
+}
+
+export interface SaleDetailResponse {
+  id: number;
+  total_amount: number;
+  payment_method: string;
+  created_at: string;
+  fiscal_invoice_number?: string | null;
+  user_id?: number | null;
+  user?: User | null;
+  items: SaleItemDetail[];
+}
+
 export const getProducts = async (): Promise<Product[]> => {
   const response = await API.get('/products/');
   return response.data;
@@ -91,4 +117,9 @@ export async function getTotalInventoryValue(): Promise<{ total_inventory_sellin
 
 export const deleteUser = async (id: number): Promise<void> => {
   await API.delete(`/auth/users/${id}`);
+};
+
+export const getSalesHistory = async (): Promise<SaleDetailResponse[]> => {
+  const response = await API.get('/sales/history');
+  return response.data;
 };

@@ -104,8 +104,8 @@ export default function UsersPage() {
         <div className="shrink-0">
           <header className="flex justify-between items-center mb-3 lg:mb-6 gap-2">
             <div>
-              <h1 className="text-lg lg:text-2xl font-bold tracking-tight">User Management</h1>
-              <p className="text-[11px] lg:text-sm text-slate-400">Manage system users, access roles, and permissions.</p>
+              <h1 className="text-xl font-bold tracking-tight">User Management</h1>
+              <p className="text-[9px] lg:text-sm text-slate-400">Manage system users, access roles, and permissions.</p>
             </div>
             <button
               onClick={openAddDrawer}

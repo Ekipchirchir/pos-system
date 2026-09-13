@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
 import { getShiftReport, getProducts, getTotalInventoryValue } from '@/services/api';
 import { ShiftReport, Product } from '@/types';
-import { HiCurrencyDollar, HiShoppingBag, HiExclamationTriangle, HiArrowTrendingUp } from 'react-icons/hi2';
+import { HiCurrencyDollar, HiShoppingBag, HiArrowTrendingUp } from 'react-icons/hi2';
 
 export default function AdminDashboard() {
   const { data: report, isLoading: isReportLoading } = useQuery<ShiftReport>({
@@ -64,8 +64,8 @@ export default function AdminDashboard() {
       <main className="flex-1 flex flex-col ml-0 lg:ml-64 h-full p-3.5 lg:p-8 pb-20 lg:pb-8 overflow-y-auto lg:overflow-hidden">
         <div className="shrink-0 mb-3 lg:mb-6">
           <header>
-            <h2 className="text-lg lg:text-2xl font-bold tracking-tight">Admin Command Center</h2>
-            <p className="text-[11px] lg:text-sm text-slate-400">Real-time oversight of store liquidity, sales velocity, and inventory health.</p>
+            <h2 className="text-xl font-bold tracking-tight">Admin Command Center</h2>
+            <p className="text-[9px] lg:text-sm text-slate-400">Real-time oversight of store liquidity, sales velocity, and inventory health.</p>
           </header>
         </div>
 
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
                       <Icon className="text-xs lg:text-xl" />
                     </div>
                   </div>
-                  <div className="text-sm lg:text-2xl font-bold text-white truncate">
+                  <div className="text-sm lg:text-xl font-bold text-white truncate">
                     {loading ? '...' : stat.value}
                   </div>
                 </div>
