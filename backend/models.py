@@ -19,6 +19,7 @@ class Sale(Base):
     __tablename__ = "sales"
 
     id = Column(Integer, primary_key=True, index=True)
+    client_sale_id = Column(String, unique=True, index=True, nullable=True)
     total_amount = Column(Float, nullable=False)
     payment_method = Column(String, default="cash", nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

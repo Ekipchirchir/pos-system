@@ -26,8 +26,10 @@ class SaleItemCreate(BaseModel):
     quantity: int
 
 class SaleCreate(BaseModel):
+    client_sale_id: Optional[str] = None
     items: List[SaleItemCreate]
     payment_method: PaymentMethod = PaymentMethod.cash
+    created_at: Optional[datetime] = None # Preserves original offline timestamp
 
 class SaleItemResponse(BaseModel):
     id: int
@@ -116,4 +118,18 @@ class TokenData(BaseModel):
     role: Optional[str] = None
 
 class StockInRequest(BaseModel):
-    quantity_to_add: int     
+    quantity_to_add: int   
+
+class BatchSyncRequest(BaseModel):
+    offline_sales: List[SaleCreate]
+
+class SyncResult(BaseModel):
+    client_sale_id: Optional[str]
+    server_sale_id: Optional[int]
+    status: str
+    detail: Optional[str] = None
+
+class BatchSyncResponse(BaseModel):
+    synced_count: int
+    failed_count: int
+    results: List[SyncResult]  

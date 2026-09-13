@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database import get_db
@@ -189,3 +190,103 @@ async def mpesa_callback(payload: dict, db: Session = Depends(get_db)):
         
     db.commit()
     return {"ResultCode": 0, "ResultDesc": "Accepted"}
+
+@router.post("/sync", response_model=schemas.BatchSyncResponse, dependencies=[Depends(auth.get_current_user)])
+def sync_offline_sales(sync_payload: schemas.BatchSyncRequest, db: Session = Depends(get_db)):
+    synced_count = 0
+    failed_count = 0
+    results = []
+
+    for sale_data in sync_payload.offline_sales:
+        # Check for idempotency if client_sale_id is provided
+        if sale_data.client_sale_id:
+            existing_sale = db.query(models.Sale).filter(
+                models.Sale.client_sale_id == sale_data.client_sale_id
+            ).first()
+            if existing_sale:
+                results.append({
+                    "client_sale_id": sale_data.client_sale_id,
+                    "server_sale_id": existing_sale.id,
+                    "status": "already_synced",
+                    "detail": "Sale already exists on server."
+                })
+                synced_count += 1
+                continue
+
+        try:
+            total_amount = 0.0
+            sale_items_to_create = []
+
+            for item in sale_data.items:
+                product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
+                if not product:
+                    raise HTTPException(status_code=404, detail=f"Product ID {item.product_id} not found")
+                
+                if product.stock_quantity < item.quantity:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Insufficient stock for {product.name}. Available: {product.stock_quantity}"
+                    )
+
+                item_total = product.selling_price * item.quantity
+                total_amount += item_total
+                product.stock_quantity -= item.quantity
+
+                sale_items_to_create.append({
+                    "product_id": product.id,
+                    "product_name": product.name,
+                    "quantity": item.quantity,
+                    "unit_price": product.selling_price,
+                    "subtotal": item_total
+                })
+
+            # Create sale with original timestamp
+            new_sale = models.Sale(
+                client_sale_id=sale_data.client_sale_id,
+                total_amount=total_amount,
+                payment_method=sale_data.payment_method,
+                created_at=sale_data.created_at or datetime.now(timezone.utc)
+            )
+            db.add(new_sale)
+            db.commit()
+            db.flush()
+
+            for item_data in sale_items_to_create:
+                item_payload = {k: v for k, v in item_data.items() if k != "product_name"}
+                sale_item = models.SaleItem(sale_id=new_sale.id, **item_payload)
+                db.add(sale_item)
+
+            db.commit()
+
+            # Attempt mock eTIMS submission for the synced record
+            try:
+                etims_resp = submit_to_etims(new_sale, sale_items_to_create)
+                new_sale.fiscal_invoice_number = etims_resp.get("fiscalInvcNo")
+                new_sale.qr_code_data = etims_resp.get("qrCodeUrl")
+                new_sale.vscu_response_code = etims_resp.get("resultCd")
+                db.commit()
+            except Exception as e:
+                print(f"eTIMS sync transmission error: {e}")
+
+            results.append({
+                "client_sale_id": sale_data.client_sale_id,
+                "server_sale_id": new_sale.id,
+                "status": "success"
+            })
+            synced_count += 1
+
+        except Exception as e:
+            db.rollback()
+            failed_count += 1
+            results.append({
+                "client_sale_id": sale_data.client_sale_id,
+                "server_sale_id": None,
+                "status": "failed",
+                "detail": str(e)
+            })
+
+    return {
+        "synced_count": synced_count,
+        "failed_count": failed_count,
+        "results": results
+    }
