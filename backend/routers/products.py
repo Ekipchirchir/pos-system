@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from database import get_db
 import models
 import schemas
@@ -92,3 +93,15 @@ def stock_in_product(product_id: int, stock_data: schemas.StockInRequest, db: Se
     db.commit()
     db.refresh(product)
     return product
+
+@router.get("/total-value/", dependencies=[Depends(auth.require_role("manager"))])
+def get_total_inventory_value(db: Session = Depends(get_db)):
+    """
+    Calculates the total potential revenue (selling price * stock quantity) 
+    for all available products in inventory.
+    """
+    total_value = db.query(
+        func.sum(models.Product.selling_price * models.Product.stock_quantity)
+    ).scalar()
+    
+    return {"total_inventory_selling_value": total_value or 0.0}

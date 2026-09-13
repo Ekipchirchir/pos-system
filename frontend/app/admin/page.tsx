@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
-import { getShiftReport, getProducts } from '@/services/api';
+import { getShiftReport, getProducts, getTotalInventoryValue } from '@/services/api';
 import { ShiftReport, Product } from '@/types';
 import { HiCurrencyDollar, HiShoppingBag, HiExclamationTriangle, HiArrowTrendingUp } from 'react-icons/hi2';
 
@@ -12,12 +12,17 @@ export default function AdminDashboard() {
     queryFn: getShiftReport,
   });
 
+  const { data: totalValueData, isLoading: isTotalValueLoading } = useQuery({
+    queryKey: ['totalInventoryValue'],
+    queryFn: getTotalInventoryValue,
+  })
+
   const { data: products = [], isLoading: isProductsLoading } = useQuery<Product[]>({
     queryKey: ['products'],
     queryFn: getProducts,
   });
 
-  const loading = isReportLoading || isProductsLoading;
+  const loading = isReportLoading || isProductsLoading || isTotalValueLoading;
 
   const lowStockProducts = products.filter((p) => p.stock_quantity <= 5);
   const totalRevenueAllItems = report?.items_sold.reduce((acc, item) => acc + item.total_revenue, 0) || 0;
@@ -45,12 +50,12 @@ export default function AdminDashboard() {
       iconBg: 'text-purple-400 bg-purple-500/20',
     },
     {
-      title: 'Low Stock Alerts',
-      value: lowStockProducts.length.toString(),
-      icon: HiExclamationTriangle,
-      cardBg: 'bg-red-950/30 border-red-800/40',
-      iconBg: 'text-red-400 bg-red-500/20',
-    },
+      title: "Total Stock Value",
+      value: totalValueData ? `Ksh ${totalValueData.total_inventory_selling_value.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : 'Kesh 0', 
+      icon: HiShoppingBag,
+      cardBg: 'bg-emerald-950/30 border-emerald-800/40',
+      iconBg: 'text-emerald-400 bg-emerald-500/20',
+    }
   ];
 
   return (

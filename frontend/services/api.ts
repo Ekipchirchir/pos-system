@@ -67,6 +67,11 @@ export const updateUser = async (id: number, data: Partial<UserCreatePayload>): 
   return response.data;
 };
 
+export async function getTotalInventoryValue(): Promise<{ total_inventory_selling_value: number }> {
+  const response = await API.get('/products/total-value/');
+  return response.data;
+}
+
 export const deleteUser = async (id: number): Promise<void> => {
   await API.delete(`/auth/users/${id}`);
 };
