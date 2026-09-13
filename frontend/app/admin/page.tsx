@@ -161,7 +161,7 @@ export default function AdminDashboard() {
               </div>
               <div className="bg-slate-950 p-2.5 lg:p-4 rounded-xl border border-slate-800 flex items-center justify-between">
                 <div>
-                  <div className="text-slate-400 text-[9px] lg:text-xs mb-0.5">PostgreSQL Database</div>
+                  <div className="text-slate-400 text-[9px] lg:text-xs mb-0.5">Database</div>
                   <div className="font-semibold text-white">Connected & Synced</div>
                 </div>
                 <span className="w-2 h-2 lg:w-3 lg:h-3 rounded-full bg-green-500 animate-pulse"></span>
