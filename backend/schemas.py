@@ -17,6 +17,14 @@ class ProductResponse(ProductCreate):
     class Config:
         from_attributes = True
 
+class ProductNestedResponse(BaseModel):
+    id: int
+    name: str
+    barcode: str
+    
+    class Config:
+        from_attributes = True
+
 class PaymentMethod(str, Enum):
     cash = "cash"
     mpesa = "mpesa"
@@ -37,10 +45,10 @@ class SaleItemResponse(BaseModel):
     quantity: int
     unit_price: float
     subtotal: float
+    product: Optional[ProductNestedResponse] = None
 
     class Config:
         from_attributes = True
-
 class SaleResponse(BaseModel):
     id: int
     total_amount: float
@@ -49,6 +57,8 @@ class SaleResponse(BaseModel):
     fiscal_invoice_number: str | None = None
     qr_code_data: str | None = None
     vscu_response_code: str | None = None
+    user_id: Optional[int] = None
+    user: Optional[UserResponse] = None
     items: List[SaleItemResponse]
 
     class Config:
@@ -133,3 +143,28 @@ class BatchSyncResponse(BaseModel):
     synced_count: int
     failed_count: int
     results: List[SyncResult]  
+class SaleDetailResponse(BaseModel):
+    id: int
+    total_amount: float
+    payment_method: str
+    created_at: datetime
+    fiscal_invoice_number: Optional[str] = None
+    user_id: Optional[int] = None
+    user: Optional[UserResponse] = None
+    items: List[SaleItemResponse]
+
+    class Config:
+        from_attributes = True
+
+class SaleDetailResponse(BaseModel):
+    id: int
+    total_amount: float
+    payment_method: str
+    created_at: datetime
+    fiscal_invoice_number: Optional[str] = None
+    user_id: Optional[int] = None
+    user: Optional[UserResponse] = None
+    items: List[SaleItemResponse] # This now uses the updated SaleItemResponse containing product info
+
+    class Config:
+        from_attribute = True

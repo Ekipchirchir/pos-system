@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from database import get_db
 import models
@@ -14,8 +14,12 @@ router = APIRouter(
     tags=["Sales"]
 )
 
-@router.post("/", response_model=schemas.SaleResponse, dependencies=[Depends(auth.get_current_user)])
-def create_sale(sale_data: schemas.SaleCreate, db: Session = Depends(get_db)):
+@router.post("/", response_model=schemas.SaleResponse)
+def create_sale(
+    sale_data: schemas.SaleCreate, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
     total_amount = 0.0
     sale_items_to_create = []
 
@@ -32,30 +36,27 @@ def create_sale(sale_data: schemas.SaleCreate, db: Session = Depends(get_db)):
 
         item_total = product.selling_price * item.quantity
         total_amount += item_total
-
-        # Automatically decrement inventory
         product.stock_quantity -= item.quantity
 
         sale_items_to_create.append({
             "product_id": product.id,
-            "product_name": product.name,  # Included for eTIMS item name mapping
+            "product_name": product.name,
             "quantity": item.quantity,
             "unit_price": product.selling_price,
             "subtotal": item_total
         })
 
-    # Record the main sale entry
+    # Record the main sale entry with user association
     new_sale = models.Sale(
         total_amount=total_amount,
-        payment_method=sale_data.payment_method
+        payment_method=sale_data.payment_method,
+        user_id=current_user.id
     )
     db.add(new_sale)
     db.commit()
     db.flush()
 
-    # Record individual items tied to the sale
     for item_data in sale_items_to_create:
-        # Pop product_name since SaleItem table model doesn't have it as a column
         item_payload = {k: v for k, v in item_data.items() if k != "product_name"}
         sale_item = models.SaleItem(
             sale_id=new_sale.id,
@@ -65,7 +66,6 @@ def create_sale(sale_data: schemas.SaleCreate, db: Session = Depends(get_db)):
 
     db.commit()
 
-    # Apply mock eTIMS data
     try:
         etims_resp = submit_to_etims(new_sale, sale_items_to_create)
         new_sale.fiscal_invoice_number = etims_resp.get("fiscalInvcNo")
@@ -191,14 +191,17 @@ async def mpesa_callback(payload: dict, db: Session = Depends(get_db)):
     db.commit()
     return {"ResultCode": 0, "ResultDesc": "Accepted"}
 
-@router.post("/sync", response_model=schemas.BatchSyncResponse, dependencies=[Depends(auth.get_current_user)])
-def sync_offline_sales(sync_payload: schemas.BatchSyncRequest, db: Session = Depends(get_db)):
+@router.post("/sync", response_model=schemas.BatchSyncResponse)
+def sync_offline_sales(
+    sync_payload: schemas.BatchSyncRequest, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
     synced_count = 0
     failed_count = 0
     results = []
 
     for sale_data in sync_payload.offline_sales:
-        # Check for idempotency if client_sale_id is provided
         if sale_data.client_sale_id:
             existing_sale = db.query(models.Sale).filter(
                 models.Sale.client_sale_id == sale_data.client_sale_id
@@ -240,12 +243,12 @@ def sync_offline_sales(sync_payload: schemas.BatchSyncRequest, db: Session = Dep
                     "subtotal": item_total
                 })
 
-            # Create sale with original timestamp
             new_sale = models.Sale(
                 client_sale_id=sale_data.client_sale_id,
                 total_amount=total_amount,
                 payment_method=sale_data.payment_method,
-                created_at=sale_data.created_at or datetime.now(timezone.utc)
+                created_at=sale_data.created_at or datetime.now(timezone.utc),
+                user_id=current_user.id
             )
             db.add(new_sale)
             db.commit()
@@ -258,7 +261,6 @@ def sync_offline_sales(sync_payload: schemas.BatchSyncRequest, db: Session = Dep
 
             db.commit()
 
-            # Attempt mock eTIMS submission for the synced record
             try:
                 etims_resp = submit_to_etims(new_sale, sale_items_to_create)
                 new_sale.fiscal_invoice_number = etims_resp.get("fiscalInvcNo")
@@ -290,3 +292,20 @@ def sync_offline_sales(sync_payload: schemas.BatchSyncRequest, db: Session = Dep
         "failed_count": failed_count,
         "results": results
     }
+
+@router.get("/history", response_model=list[schemas.SaleDetailResponse])
+def get_sales_history(
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.require_role("manager"))
+):
+    _ = current_user.id
+    sales = (
+        db.query(models.Sale)
+        .options(
+            joinedload(models.Sale.items).joinedload(models.SaleItem.product),
+            joinedload(models.Sale.user)
+        )
+        .order_by(models.Sale.created_at.desc())
+        .all()
+    )
+    return sales

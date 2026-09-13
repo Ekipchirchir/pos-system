@@ -24,11 +24,13 @@ class Sale(Base):
     payment_method = Column(String, default="cash", nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     fiscal_invoice_number = Column(String, unique=True, index=True, nullable=True)
     qr_code_data = Column(String, nullable=True)
     vscu_response_code = Column(String, nullable=True)
 
     items = relationship("SaleItem", back_populates="sale")
+    user = relationship("User", back_populates="sales")
 
 class SaleItem(Base):
     __tablename__ = "sale_items"
@@ -50,6 +52,8 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="cashier", nullable=False) 
+
+    sales = relationship("Sale", back_populates="user")
 
 class MPesaTransaction(Base):
     __tablename__ = "mpesa_transactions"
