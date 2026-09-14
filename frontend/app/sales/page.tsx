@@ -116,7 +116,7 @@ export default function SalesHistoryPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-white text-sm sm:text-sm">#{sale.id}</span>
                         {sale.fiscal_invoice_number && (
-                          <span className="text-[9px] sm:text-[10px] bg-slate-950 px-1.5 py-0.5 font-medium rounded text-slate-100 border border-slate-800 truncate max-w-[150px] sm:max-w-none">
+                          <span className="text-[9px] sm:text-[10px] bg-slate-950 px-1.5 py-0.5 font-medium rounded text-slate-100 border border-slate-800 truncate max-w-37.5 sm:max-w-none">
                             KRA: {sale.fiscal_invoice_number}
                           </span>
                         )}
@@ -131,7 +131,7 @@ export default function SalesHistoryPage() {
                           })}
                         </span>
                         <span>•</span>
-                        <span className="inline-flex items-center gap-1 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 text-slate-300 truncate max-w-[140px]">
+                        <span className="inline-flex items-center gap-1 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 text-slate-300 truncate max-w-35">
                           <HiUser className="text-slate-100 font-medium text-[10px]" />
                           {sale.user?.username || 'Unknown'}
                         </span>

@@ -53,6 +53,13 @@ export interface SaleDetailResponse {
   items: SaleItemDetail[];
 }
 
+export interface MpesaStatusResponse {
+  checkout_request_id: string;
+  status: 'Pending' | 'Completed' | 'Failed';
+  result_desc?: string;
+  receipt_number?: string;
+}
+
 export const getProducts = async (): Promise<Product[]> => {
   const response = await API.get('/products/');
   return response.data;
@@ -83,6 +90,30 @@ export const initiateMpesaPayment = async (phoneNumber: string, amount: number, 
     params: { phone_number: phoneNumber, amount, order_ref: orderRef, sale_id: saleId }
   });
   return response.data;
+};
+
+export const checkMpesaStatus = async (checkoutRequestId: string): Promise<MpesaStatusResponse> => {
+  const response = await API.get(`/sales/mpesa/status/${checkoutRequestId}`);
+  return response.data;
+};
+
+export const pollMpesaPayment = async (checkoutRequestId: string, timeoutSeconds = 60): Promise<MpesaStatusResponse> => {
+  const startTime = Date.now();
+  
+  while ((Date.now() - startTime) / 1000 < timeoutSeconds) {
+    const data = await checkMpesaStatus(checkoutRequestId);
+    
+    if (data.status === 'Completed') {
+      return data;
+    }
+    if (data.status === 'Failed') {
+      throw new Error(data.result_desc || 'M-Pesa payment failed or cancelled by user.');
+    }
+    
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  
+  throw new Error('M-Pesa payment timed out waiting for PIN input.');
 };
 
 export const getShiftReport = async (): Promise<ShiftReport> => {

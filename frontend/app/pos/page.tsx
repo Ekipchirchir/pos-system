@@ -3,11 +3,11 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Sidebar from '@/components/Sidebar';
-import Image from 'next/image';
-import { getProducts, createSale, initiateMpesaPayment } from '@/services/api';
+import { getProducts, createSale, initiateMpesaPayment, pollMpesaPayment } from '@/services/api';
 import { saveOfflineSale } from '@/utils/offlineStorage';
 import { Product, SaleResponse } from '@/types';
-import { HiShoppingBag, HiTrash, HiQrCode, HiCurrencyDollar, HiDevicePhoneMobile } from 'react-icons/hi2';
+import { HiShoppingBag, HiTrash, HiQrCode, HiCurrencyDollar, HiDevicePhoneMobile, HiShoppingCart } from 'react-icons/hi2';
+import toast from 'react-hot-toast';
 
 interface CartItem extends Product {
   quantity: number;
@@ -44,7 +44,32 @@ export default function POSPage() {
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (orderRef: string) => {
+      // Handle M-Pesa Payment Flow
+      if (paymentMethod === 'mpesa') {
+        if (!phone) throw new Error("Please enter an M-Pesa phone number");
+
+        const stkToastId = toast.loading('Sending M-Pesa prompt...');
+
+        try {
+          const stkResponse = await initiateMpesaPayment(phone, totalAmount, orderRef);
+          const checkoutRequestId = stkResponse?.daraja_response?.CheckoutRequestID;
+
+          if (!checkoutRequestId) {
+            throw new Error("Failed to retrieve CheckoutRequestID from Daraja.");
+          }
+
+          toast.loading('Prompt sent! Ask the customer to input their pin...', { id: stkToastId });
+
+          await pollMpesaPayment(checkoutRequestId, 60);
+          
+          toast.success('M-Pesa payment received!', { id: stkToastId });
+        } catch (err) {
+          toast.dismiss(stkToastId);
+          throw err;
+        }
+      }
+
       const salePayload = {
         items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
         payment_method: paymentMethod,
@@ -74,7 +99,7 @@ export default function POSPage() {
 
       let timeoutId: ReturnType<typeof setTimeout>;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), 1500);
+        timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), 10000);
       });
 
       try {
@@ -84,15 +109,6 @@ export default function POSPage() {
         ]) as SaleResponse;
 
         clearTimeout(timeoutId!);
-
-        if (paymentMethod === 'mpesa' && phone) {
-          try {
-            await initiateMpesaPayment(phone, totalAmount, `INV-${saleResponse.id}`, saleResponse.id);
-          } catch (mpesaError) {
-            console.warn("M-Pesa push failed, but sale was recorded:", mpesaError);
-          }
-        }
-
         return saleResponse;
       } catch {
         clearTimeout(timeoutId!); 
@@ -101,6 +117,7 @@ export default function POSPage() {
       }
     },
     onSuccess: (saleResponse) => {
+      toast.success('Sale completed successfully!');
       setCompletedSale(saleResponse);
       setCart([]);
       setCashReceived('');
@@ -109,7 +126,7 @@ export default function POSPage() {
     },
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : 'Checkout failed';
-      alert(errorMessage);
+      toast.error(errorMessage);
     },
   });
 
@@ -158,7 +175,8 @@ export default function POSPage() {
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
-    checkoutMutation.mutate();
+    const orderRef = `ORDER-${Date.now()}`;
+    checkoutMutation.mutate(orderRef);
   };
 
   const filteredProducts = products.filter((p) => {
@@ -339,48 +357,44 @@ export default function POSPage() {
 
       {completedSale && (
         <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-3 sm:p-4 z-50 print:bg-white print:block print:p-0 print:m-0 print:absolute print:inset-0 overflow-y-auto">
-          <div className="flex flex-col gap-3 max-w-sm w-full my-auto print:w-[80mm] print:max-w-none print:mx-auto">
+          <div className="flex flex-col gap-3 max-w-xs w-full my-auto print:w-[80mm] print:max-w-none print:mx-auto">
             
-            <div className="bg-white text-slate-800 p-4 sm:p-6 rounded-2xl w-full text-xs leading-relaxed shadow-2xl overflow-y-auto max-h-[75vh] sm:max-h-[80vh] print:shadow-none print:p-4 print:m-0 print:rounded-none print:max-h-none print:overflow-visible border border-slate-100 font-mono">
-              <div className="text-center flex flex-col items-center mb-3 sm:mb-4">
-                <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden mb-2 border border-slate-200 shadow-sm bg-slate-50">
-                  <Image 
-                    src="/images/logo/logo.png" 
-                    alt="Logo" 
-                    fill 
-                    className="object-cover"
-                  />
+            <div className="bg-white text-slate-900 p-5 rounded-sm w-full text-xs shadow-2xl overflow-y-auto max-h-[75vh] sm:max-h-[80vh] print:shadow-none print:p-2 print:m-0 print:rounded-none print:max-h-none print:overflow-visible border border-slate-200 font-mono tracking-tight">
+              
+              <div className="text-center flex flex-col items-center mb-3">
+                <div className="p-2.5 bg-slate-100 rounded-full mb-1.5 text-slate-800 border border-slate-300">
+                  <HiShoppingCart className="text-3xl" />
                 </div>
-                <h2 className="font-bold text-sm sm:text-base uppercase tracking-wider font-sans text-slate-900">Wines & Spirits</h2>
-                <p className="text-slate-500 text-[10px] sm:text-[11px] font-sans">Nairobi, Kenya | Tel: +254 700 000 000</p>
+                <h2 className="font-extrabold text-base tracking-wider font-sans uppercase">Liquor Store POS</h2>
+                <p className="text-slate-500 text-[10px] font-sans">Nairobi, Kenya | Tel: +254 712 345 678</p>
               </div>
 
-              <div className="border-t border-b border-slate-200 py-2 mb-2.5 space-y-1 text-slate-600 text-[10px] sm:text-[11px]">
+              <div className="border-t border-b border-dashed border-slate-400 py-2 mb-3 space-y-0.5 text-[10px]">
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-sans">Date:</span>
-                  <span className="font-semibold text-slate-800">{new Date(completedSale.created_at).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                  <span>Date:</span>
+                  <span className="font-bold">{new Date(completedSale.created_at).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-sans">Receipt No:</span>
-                  <span className="font-semibold text-slate-800">#{completedSale.id}</span>
+                  <span>Receipt No:</span>
+                  <span className="font-bold">#{completedSale.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-sans">Cashier:</span>
-                  <span className="font-semibold text-slate-800 capitalize font-sans">{cashierName}</span>
+                  <span>Cashier:</span>
+                  <span className="font-bold capitalize">{cashierName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400 font-sans">Payment Mode:</span>
-                  <span className="font-semibold text-slate-800 uppercase">{completedSale.payment_method}</span>
+                  <span>Payment Method:</span>
+                  <span className="font-bold uppercase">{completedSale.payment_method}</span>
                 </div>
               </div>
 
-              <div className="mb-2.5">
-                <table className="w-full text-left text-[10px] sm:text-[11px]">
+              <div className="mb-3">
+                <table className="w-full text-left text-[11px]">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider font-sans text-[9px] sm:text-[10px]">
-                      <th className="pb-1 font-semibold w-1/2">Item</th>
-                      <th className="pb-1 font-semibold text-center w-1/6">Qty</th>
-                      <th className="pb-1 font-semibold text-right w-1/3">Amount</th>
+                    <tr className="border-b border-slate-300 uppercase text-[9px] font-bold">
+                      <th className="pb-1 w-1/2">Item</th>
+                      <th className="pb-1 text-center w-1/6">Qty</th>
+                      <th className="pb-1 text-right w-1/3">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -388,9 +402,9 @@ export default function POSPage() {
                       const product = products.find(p => p.id === item.product_id);
                       return (
                         <tr key={item.id} className="align-top">
-                          <td className="py-1.5 pr-1 font-sans font-medium text-slate-800">{product?.name || `Item #${item.product_id}`}</td>
-                          <td className="py-1.5 text-center text-slate-600">{item.quantity}</td>
-                          <td className="py-1.5 text-right font-semibold text-slate-900">{(item.quantity * item.unit_price).toLocaleString()}</td>
+                          <td className="py-1 pr-1 font-sans">{product?.name || `Item #${item.product_id}`}</td>
+                          <td className="py-1 text-center font-mono">{item.quantity}</td>
+                          <td className="py-1 text-right font-mono font-bold">{(item.quantity * item.unit_price).toLocaleString()}</td>
                         </tr>
                       );
                     })}
@@ -398,25 +412,29 @@ export default function POSPage() {
                 </table>
               </div>
 
-              <div className="border-t border-slate-200 pt-2 mb-3 space-y-1">
-                <div className="flex justify-between items-center text-xs sm:text-sm font-bold text-slate-900">
-                  <span className="font-sans text-[11px] text-slate-500 uppercase tracking-wider">Total Due:</span>
-                  <span className="text-blue-600 text-sm sm:text-base font-mono">Ksh {completedSale.total_amount.toLocaleString()}</span>
+              <div className="border-t border-dashed border-slate-400 pt-2 mb-3">
+                <div className="flex justify-between items-center text-sm font-black">
+                  <span className="uppercase text-xs font-bold">Total:</span>
+                  <span className="font-mono">Ksh {completedSale.total_amount.toLocaleString()}</span>
                 </div>
               </div>
 
               {completedSale.fiscal_invoice_number && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center space-y-0.5 mb-3 text-[9px] sm:text-[10px] text-slate-600">
-                  <p className="font-bold text-slate-800 uppercase tracking-wider font-sans">KRA eTIMS Fiscal Receipt</p>
-                  <p><span className="text-slate-400">Inv:</span> {completedSale.fiscal_invoice_number}</p>
-                  <p><span className="text-slate-400">VSCU:</span> {completedSale.vscu_response_code}</p>
+                <div className="bg-slate-50 border border-slate-300 rounded p-1.5 text-center mb-3 text-[9px] text-slate-700">
+                  <p className="font-bold uppercase font-sans">eTIMS Fiscal Receipt</p>
+                  <p><span className="text-slate-500">Inv:</span> {completedSale.fiscal_invoice_number}</p>
+                  <p><span className="text-slate-500">VSCU:</span> {completedSale.vscu_response_code}</p>
                 </div>
               )}
 
-              <div className="text-center pt-2.5 border-t border-dashed border-slate-200 text-slate-500 text-[10px] sm:text-[11px] space-y-0.5 font-sans">
-                <p className="font-bold text-slate-800">Thank you for shopping with us!</p>
-                <p className="text-slate-400 text-[9px]">Please come again.</p>
+              <div className="text-center pt-2.5 border-t border-dashed border-slate-400 space-y-1 font-sans">
+                <p className="font-bold text-slate-800 text-[11px]">Thank you for shopping with us!</p>
+                <p className="text-slate-700 text-[10px] font-bold uppercase tracking-wider bg-slate-100 py-1 rounded border border-slate-200">
+                  Drink Responsibly
+                </p>
+                <p className="text-slate-500 text-[8px]">Not for sale to persons under the age of 18.</p>
               </div>
+
             </div>
 
             <div className="flex gap-2.5 print:hidden shrink-0">
