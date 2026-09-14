@@ -309,3 +309,19 @@ def get_sales_history(
         .all()
     )
     return sales
+
+@router.get("/mpesa/status/{checkout_request_id}", dependencies=[Depends(auth.get_current_user)])
+def get_mpesa_status(checkout_request_id: str, db: Session = Depends(get_db)):
+    mpesa_tx = db.query(models.MPesaTransaction).filter(
+        models.MPesaTransaction.checkout_request_id == checkout_request_id
+    ).first()
+
+    if not mpesa_tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    return {
+        "checkout_request_id": mpesa_tx.checkout_request_id,
+        "status": mpesa_tx.status,
+        "result_desc": mpesa_tx.result_desc,
+        "receipt_number": mpesa_tx.receipt_number
+    }
